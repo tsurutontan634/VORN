@@ -48,3 +48,30 @@ def report_turn(llm, profile: MunicipalityProfile, record: dict, history: list[d
         corpus=profile.corpus(),
         ctx={"profile": profile, "record": record, "history": history},
     )
+
+
+def build_report_docx(profile: MunicipalityProfile, record: dict, report: dict, date) -> bytes:
+    """第5号様式 活動状況報告書。配布 DOCX が無い様式なので、要綱の様式に沿ってゼロから組む。"""
+    import io
+
+    from .documents import build_document
+
+    colony = record.get("colony") or {}
+    members = colony.get("members") or []
+    rep = next((m for m in members if "代表" in (m.get("role") or "")), members[0] if members else {})
+    y, m, d = date.year, date.month, date.day
+    fields = [
+        {"label": "提出日", "value": f"令和{y - 2018}年{m}月{d}日"},
+        {"label": "住所", "value": rep.get("address", "")},
+        {"label": "活動者氏名", "value": rep.get("name", "") or record.get("representative", "")},
+        {"label": "電話", "value": rep.get("phone", "")},
+        {"label": "登録地域名", "value": f"{record.get('ward', '')}{record.get('town', '')}"},
+        {"label": "現在管理する猫の頭数", "value": f"{report.get('cat_count')}頭"},
+        {"label": "現在管理する猫のうち避妊去勢手術済の猫の頭数", "value": f"{report.get('ear_tipped_count')}頭"},
+        {"label": "その他、まちねこ活動に関する報告事項（効果、苦情対応の状況、課題、活動内容の変更等含む）", "value": f"この1年の手術 {report.get('surgeries')}頭。{report.get('summary', '')}"},
+    ]
+    doc = build_document("第５号様式（第１２条関係）　まちねこ活動状況報告書", "（宛先）京都市医療衛生センター長", fields, [],
+                         footer="※ 第5号様式は配布 DOCX が無いため、要綱記載の様式に沿って自動生成しています。")
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

@@ -98,6 +98,9 @@ def load_profile(municipality_id: str = "kyoto") -> MunicipalityProfile:
         if available:
             try:
                 text = read_source_text(path)
+                if len(text.strip()) < 50:  # 画像だけの PDF など。テキストが取れないので LLM には渡さない
+                    available = False
+                    text = ""
             except Exception as e:  # 読めない資料は「無い」扱いにして先へ進む
                 text = ""
                 available = False

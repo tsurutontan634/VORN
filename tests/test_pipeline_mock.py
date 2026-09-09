@@ -23,12 +23,16 @@ def test_end_to_end_mock():
     c2 = Colony.from_dict({**c.to_dict(), "members": c.to_dict()["members"][:1]})
     assert rules.check_colony(llm, p, r, c2)["ready_to_apply"] is False
 
+    import docx, io
     for key in p.forms:
         filled = documents.fill_form_fields(llm, p, c, key, dt.date(2026, 9, 15))
         data, how = documents.render_docx(p, key, filled)
-        assert data[:2] == b"PK"
+        assert "配布様式" in how
+        d = docx.Document(io.BytesIO(data))
+        text = "\n".join(cell.text for t in d.tables for row in t.rows for cell in row.cells)
+        assert "山田 花子" in text and "11" in text
 
-    assert "首輪" in flyer.generate_flyer(llm, p, c, "")
+    assert "まちねこ活動のお知らせ" in flyer.generate_flyer(llm, p, c, "")
 
     spec = schedule.extract_timeline_spec(llm, p)
     rows = schedule.build_timeline(spec, schedule.Anchors(register=dt.date(2026, 10, 20)))
@@ -40,7 +44,7 @@ def test_intake_mock_completes():
     llm = LLM(mock=True)
     c = Colony()
     hist = []
-    for i in range(4):
+    for i in range(5):
         hist.append({"role": "user", "content": f"turn {i}"})
         out = intake.intake_turn(llm, p, c, hist)
         c = c.merge(out["colony_patch"])

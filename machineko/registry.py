@@ -3,6 +3,7 @@
 市民面で提出した申請・報告がここに入り、自治体面（医療衛生センター職員）が一覧・詳細で見る。
 永続化は JSON 1ファイル。デモ用なので排他制御はしない。
 状態は保存せず、日付と報告履歴から毎回計算する。
+報告・更新の期限ルール（間隔・日数）は要綱から抽出した値を提出時に保存し、それを使う。
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SEED = ROOT / "demo" / "registry_seed.json"
 DATA = ROOT / "data" / "registry.json"
 
-REPORT_LEAD_DAYS = 60   # 期限の何日前から「報告待ち」にするか（運用上の設定値。要綱の値ではない）
+RULE_KEYS = ("annual_report_interval_months", "annual_report_window_days", "registration_validity_years", "renewal_window_days_before")
 
 
 def _d(s: str | None) -> dt.date | None:
@@ -58,17 +59,18 @@ class Registry:
         nums = [int(c["id"].rsplit("-", 1)[1]) for c in self.all() if c["id"].startswith(f"K-{year}-")]
         n = max(nums, default=0) + 1
         members = colony.get("members") or []
+        rep = next((m for m in members if "代表" in (m.get("role") or "")), members[0] if members else {})
         rec = {
             "id": f"K-{year}-{n:03d}",
             "ward": colony.get("ward", ""),
+            "town": colony.get("town", ""),
             "location": colony.get("location", ""),
             "cat_count": colony.get("cat_count"),
             "ear_tipped_count": colony.get("ear_tipped_count"),
             "applied_date": applied_date.isoformat(),
             "registered_date": None,
-            "annual_report_interval_months": (spec or {}).get("annual_report_interval_months"),
-            "registration_validity_years": (spec or {}).get("registration_validity_years"),
-            "representative": members[0].get("name", "") if members else "",
+            "rules": {k: (spec or {}).get(k) for k in RULE_KEYS},
+            "representative": rep.get("name", ""),
             "documents": {k: {"form_title": v["form_title"], "fields": v["fields"]} for k, v in documents.items()},
             "reports": [],
             "colony": colony,
@@ -97,36 +99,50 @@ class Registry:
     # ---- 状態計算 ----
     @staticmethod
     def deadlines(rec: dict, today: dt.date | None = None) -> dict:
-        """次の年次報告期限・更新期限・状態を返す。"""
+        """次の年次報告の基準日・期限、更新の満了日・提出開始日、状態を返す。"""
         today = today or dt.date.today()
         reg = _d(rec.get("registered_date"))
-        interval = rec.get("annual_report_interval_months")
-        validity = rec.get("registration_validity_years")
-        out = {"next_report_due": None, "renewal_due": None, "status": "申請中", "last_report": None}
+        rules = rec.get("rules") or {}
+        interval = rules.get("annual_report_interval_months")
+        window = rules.get("annual_report_window_days") or 0
+        validity = rules.get("registration_validity_years")
+        before = rules.get("renewal_window_days_before") or 0
+        out = {"next_report_base": None, "next_report_due": None, "renewal_due": None, "renewal_open": None, "status": "申請中", "last_report": None}
         if not reg:
             return out
         if validity:
             out["renewal_due"] = add_months(reg, validity * 12)
+            out["renewal_open"] = out["renewal_due"] - dt.timedelta(days=before)
         reports = sorted(rec.get("reports", []), key=lambda r: r["date"])
         out["last_report"] = _d(reports[-1]["date"]) if reports else None
+
+        # 更新
+        if out["renewal_due"]:
+            if today > out["renewal_due"]:
+                out["status"] = "期限超過"
+                return out
+            if today >= out["renewal_open"]:
+                out["status"] = "更新待ち"
+                return out
         if not interval:
             out["status"] = "登録済"
             return out
-        # 報告サイクル k 回目の期限 = 登録日 + interval*k。報告が k 件あれば k+1 回目が次の期限。
+        # 年次報告：k 回目の基準日 = 登録日 + interval*k。報告が k-1 件あれば k 回目が次。
         k = len(reports) + 1
-        due = add_months(reg, interval * k)
-        limit = out["renewal_due"] or due
-        if due > limit:
-            due = limit
+        base = add_months(reg, interval * k)
+        due = base + dt.timedelta(days=window)
+        if out["renewal_due"] and base >= out["renewal_due"]:
+            # 更新年度は更新申請書で代替（報告の期限は立てない）
+            out["status"] = "登録済"
+            return out
+        out["next_report_base"] = base
         out["next_report_due"] = due
-        if out["renewal_due"] and today > out["renewal_due"]:
+        if today > due:
             out["status"] = "期限超過"
-        elif today > due:
-            out["status"] = "期限超過"
-        elif reports and (today - out["last_report"]).days <= REPORT_LEAD_DAYS:
-            out["status"] = "報告済"
-        elif (due - today).days <= REPORT_LEAD_DAYS:
+        elif today >= base:
             out["status"] = "報告待ち"
+        elif out["last_report"] and (today - out["last_report"]).days <= (window or 30):
+            out["status"] = "報告済"
         else:
             out["status"] = "登録済"
         return out
@@ -138,14 +154,14 @@ class Registry:
             rows.append({
                 "ID": rec["id"],
                 "区": rec["ward"],
-                "場所": rec["location"],
+                "活動地域": f"{rec.get('town', '')} {rec.get('location', '')}".strip(),
                 "頭数": rec["cat_count"],
-                "耳カット済": rec["ear_tipped_count"],
+                "手術済": rec["ear_tipped_count"],
                 "申請日": rec["applied_date"],
                 "登録日": rec.get("registered_date") or "—",
                 "次回報告期限": d["next_report_due"].isoformat() if d["next_report_due"] else "—",
-                "更新期限": d["renewal_due"].isoformat() if d["renewal_due"] else "—",
+                "更新満了日": d["renewal_due"].isoformat() if d["renewal_due"] else "—",
                 "状態": d["status"],
             })
-        order = {"期限超過": 0, "報告待ち": 1, "申請中": 2, "報告済": 3, "登録済": 4}
+        order = {"期限超過": 0, "報告待ち": 1, "更新待ち": 2, "申請中": 3, "報告済": 4, "登録済": 5}
         return sorted(rows, key=lambda r: (order.get(r["状態"], 9), r["ID"]))

@@ -1,39 +1,33 @@
 {
-  "_comment": "自治体面のデモ用ダミー。日付は 2026-09 のデモを想定。interval/validity は要綱抽出結果を登録時に保存したもの（デモでは固定値）。",
+  "_comment": "自治体面のデモ用ダミー。2026-09 のデモで 期限超過・報告待ち・更新待ち・申請中 が1件ずつ出る日付。rules は要綱から抽出した値を登録時に保存したもの（要綱 第6条・第12条）。",
   "colonies": [
     {
       "id": "K-2024-017",
       "ward": "伏見区",
-      "location": "深草◯◯町 △△神社裏の空き地",
+      "town": "深草◯◯町",
+      "location": "△△神社裏の空き地",
       "cat_count": 8,
       "ear_tipped_count": 8,
-      "applied_date": "2024-10-03",
-      "registered_date": "2024-11-18",
-      "annual_report_interval_months": 12,
-      "registration_validity_years": 3,
+      "applied_date": "2024-07-03",
+      "registered_date": "2024-08-20",
+      "rules": {"annual_report_interval_months": 12, "annual_report_window_days": 30, "registration_validity_years": 3, "renewal_window_days_before": 30},
       "representative": "田中 美咲",
       "documents": {},
       "reports": [
-        {
-          "date": "2025-11-10",
-          "cat_count": 9,
-          "ear_tipped_count": 9,
-          "surgeries": 4,
-          "summary": "1年目。4頭を手術。子猫1頭は成長後に手術済。苦情なし。"
-        }
+        {"date": "2025-08-25", "cat_count": 9, "ear_tipped_count": 9, "surgeries": 4, "summary": "1年目。4頭を手術。子猫1頭は成長後に手術済。苦情なし。"}
       ],
       "colony": {}
     },
     {
       "id": "K-2025-041",
       "ward": "右京区",
-      "location": "太秦◯◯町 市営住宅◯棟の裏",
+      "town": "太秦◯◯町",
+      "location": "市営住宅◯棟の裏",
       "cat_count": 14,
       "ear_tipped_count": 6,
       "applied_date": "2025-05-20",
       "registered_date": "2025-06-27",
-      "annual_report_interval_months": 12,
-      "registration_validity_years": 3,
+      "rules": {"annual_report_interval_months": 12, "annual_report_window_days": 30, "registration_validity_years": 3, "renewal_window_days_before": 30},
       "representative": "中村 健",
       "documents": {},
       "reports": [],
@@ -42,43 +36,31 @@
     {
       "id": "K-2023-102",
       "ward": "南区",
-      "location": "東九条◯◯町 高架下",
+      "town": "東九条◯◯町",
+      "location": "高架下",
       "cat_count": 5,
       "ear_tipped_count": 5,
-      "applied_date": "2023-09-01",
-      "registered_date": "2023-10-12",
-      "annual_report_interval_months": 12,
-      "registration_validity_years": 3,
+      "applied_date": "2023-08-18",
+      "registered_date": "2023-09-25",
+      "rules": {"annual_report_interval_months": 12, "annual_report_window_days": 30, "registration_validity_years": 3, "renewal_window_days_before": 30},
       "representative": "小林 由紀",
       "documents": {},
       "reports": [
-        {
-          "date": "2024-10-01",
-          "cat_count": 6,
-          "ear_tipped_count": 6,
-          "surgeries": 3,
-          "summary": "1年目。3頭を手術。"
-        },
-        {
-          "date": "2025-10-08",
-          "cat_count": 5,
-          "ear_tipped_count": 5,
-          "surgeries": 0,
-          "summary": "2年目。1頭が死亡（老衰）。新規流入なし。"
-        }
+        {"date": "2024-10-01", "cat_count": 6, "ear_tipped_count": 6, "surgeries": 3, "summary": "1年目。3頭を手術。"},
+        {"date": "2025-10-08", "cat_count": 5, "ear_tipped_count": 5, "surgeries": 0, "summary": "2年目。1頭が死亡（老衰）。新規流入なし。"}
       ],
       "colony": {}
     },
     {
       "id": "K-2026-009",
       "ward": "中京区",
-      "location": "壬生◯◯町 寺院の駐車場",
+      "town": "壬生◯◯町",
+      "location": "寺院の駐車場",
       "cat_count": 7,
       "ear_tipped_count": 0,
       "applied_date": "2026-08-28",
       "registered_date": null,
-      "annual_report_interval_months": 12,
-      "registration_validity_years": 3,
+      "rules": {"annual_report_interval_months": 12, "annual_report_window_days": 30, "registration_validity_years": 3, "renewal_window_days_before": 30},
       "representative": "高橋 誠",
       "documents": {},
       "reports": [],

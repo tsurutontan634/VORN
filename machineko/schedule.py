@@ -33,7 +33,9 @@ TIMELINE_SCHEMA = {
             },
         },
         "annual_report_interval_months": {"type": ["integer", "null"]},
+        "annual_report_window_days": {"type": ["integer", "null"]},
         "registration_validity_years": {"type": ["integer", "null"]},
+        "renewal_window_days_before": {"type": ["integer", "null"]},
         "renewal_note": {"type": "string"},
         "termination_note": {"type": "string"},
         "other_deadlines": {
@@ -50,7 +52,7 @@ TIMELINE_SCHEMA = {
             },
         },
     },
-    "required": ["steps", "annual_report_interval_months", "registration_validity_years", "renewal_note", "termination_note", "other_deadlines"],
+    "required": ["steps", "annual_report_interval_months", "annual_report_window_days", "registration_validity_years", "renewal_window_days_before", "renewal_note", "termination_note", "other_deadlines"],
 }
 
 TIMELINE_SYSTEM = """あなたは自治体の地域猫活動支援制度の事務担当者です。
@@ -58,7 +60,8 @@ TIMELINE_SYSTEM = """あなたは自治体の地域猫活動支援制度の事�
 - steps は apply（申請提出）→ review（審査・現地調査）→ register（登録）→ notify（地域への周知）→ trap（捕獲）→ surgery（センター持込・手術）→ return（元の場所へ戻す）→ annual_report（年次報告）→ renewal（更新）の順。
 - who_decides_date：申請者が決めるもの／自治体が決めるもの／個別調整／規則で固定、を資料から判断する。
 - 資料に日数・期間が書かれていないものは description に「資料に記載なし」と明記し、数字を作らない。
-- annual_report_interval_months と registration_validity_years は資料に明記があるときだけ数字を入れ、無ければ null。
+- annual_report_interval_months（報告の間隔）、annual_report_window_days（報告の基準日から何日以内に出すか）、registration_validity_years（登録の有効期間）、renewal_window_days_before（更新申請を満了日の何日前から出せるか）は資料に明記があるときだけ数字を入れ、無ければ null。
+- documents には様式番号と名称を書く（例：「第４号様式 まちねこ避妊去勢手術実施申請書」）。
 - other_deadlines には廃止届・変更届など、条件付きで発生する提出物を入れる。"""
 
 
@@ -124,35 +127,24 @@ def build_timeline(spec: dict, anchors: Anchors) -> list[TimelineRow]:
     ]
 
     base = anchors.register
+    window = spec.get("annual_report_window_days") or 0
     if interval and base:
         limit_months = (validity or 3) * 12
         months, n = interval, 1
         while months < limit_months:
-            rows.append(mk("annual_report", add_months(base, months), f"登録日＋{months}か月（{n}回目）"))
+            anniv = add_months(base, months)
+            due = anniv + dt.timedelta(days=window)
+            note = f"登録日＋{months}か月（{n}回目）" + (f"。{anniv.isoformat()} から{window}日以内" if window else "")
+            rows.append(mk("annual_report", due, note))
             months += interval
             n += 1
     else:
         rows.append(mk("annual_report", None, "登録日が決まると自動計算" if interval else "資料に間隔の記載なし"))
     if validity and base:
-        rows.append(mk("renewal", add_months(base, validity * 12), f"登録日＋{validity}年（有効期限）"))
+        expiry = add_months(base, validity * 12)
+        before = spec.get("renewal_window_days_before")
+        note = f"登録日＋{validity}年（満了日）" + (f"。{(expiry - dt.timedelta(days=before)).isoformat()} から提出可" if before else "")
+        rows.append(mk("renewal", expiry, note))
     else:
         rows.append(mk("renewal", None, "登録日が決まると自動計算" if validity else "資料に有効期間の記載なし"))
     return rows
-
-
-def build_reminders(spec: dict, rows: list[TimelineRow], today: dt.date | None = None) -> list[dict]:
-    """期限のリマインド一覧。日付のあるものは残日数付き、条件付きのものは条件を表示。"""
-    today = today or dt.date.today()
-    out = []
-    for r in rows:
-        if r.key in ("annual_report", "renewal") and r.date:
-            out.append({
-                "label": r.label,
-                "date": r.date.isoformat(),
-                "days_left": (r.date - today).days,
-                "note": r.date_note,
-                "lead_days": 60 if r.key == "renewal" else 30,
-            })
-    for d in spec.get("other_deadlines", []):
-        out.append({"label": d["label"], "date": None, "days_left": None, "note": d["condition"], "lead_days": None})
-    return out

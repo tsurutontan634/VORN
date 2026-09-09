@@ -82,12 +82,15 @@ with st.sidebar:
     st.caption(f"LLM：{llm.mode_label}")
     avail = [s.file for s in profile.sources if s.available]
     missing = profile.missing_sources()
-    st.caption(f"読み込んだ一次資料：{len(avail)}件")
+    with st.expander(f"読み込んだ一次資料 {len(avail)}件"):
+        for s in profile.sources:
+            if s.available:
+                st.markdown(f"- `{s.file}` — {s.role}")
     if missing:
-        with st.expander(f"未配置の資料 {len(missing)}件"):
+        with st.expander(f"読めない・未配置の資料 {len(missing)}件"):
             for s in missing:
                 st.markdown(f"- `{s.file}` — {s.role}")
-            st.caption(f"`municipality/{profile.id}/sources/` に置くと自動で読み込みます。")
+            st.caption("画像だけの PDF はテキストが取れないため LLM に渡していません。")
     st.divider()
     if st.button("デモ用のコロニー情報を読み込む", use_container_width=True):
         ss.colony = Colony.from_dict(json.loads((Path("demo") / "sample_colony.json").read_text(encoding="utf-8")))
@@ -283,6 +286,10 @@ elif step.startswith("5."):
                 unsafe_allow_html=True,
             )
         st.info(f"更新：{spec['renewal_note']}  \n終了時：{spec['termination_note']}")
+        if spec.get("other_deadlines"):
+            st.markdown("**条件付きで発生する提出物**")
+            for d_ in spec["other_deadlines"]:
+                st.markdown(f"- {d_['label']}：{d_['condition']}　<small>「{d_['source_quote']}」</small>", unsafe_allow_html=True)
         with st.expander("抽出元の引用"):
             for s in spec["steps"]:
                 st.markdown(f"- {s['label']}：「{s['source_quote']}」")
@@ -290,7 +297,7 @@ elif step.startswith("5."):
 # ---------- 6. 自治体面 ----------
 elif step.startswith("6."):
     st.subheader("6. 自治体面：登録コロニー一覧")
-    st.caption(f"{profile.office}の職員が見る画面。市民面で提出された申請・報告がそのまま載ります。状態は日付と報告履歴から計算しています。")
+    st.caption(f"{profile.office}の職員が見る画面。市民面で提出された申請・報告がそのまま載ります。状態は、要綱から抽出した期限ルール（報告は登録日と同月日から◯日以内、更新は満了日の◯日前から）と報告履歴から計算しています。")
     rows = registry.rows()
     counts = {}
     for r in rows:
@@ -302,12 +309,16 @@ elif step.startswith("6."):
     cid = st.selectbox("詳細を見るコロニー", ids, index=default)
     rec = registry.get(cid)
     d = registry.deadlines(rec)
-    st.markdown(f"#### {rec['id']}　{rec['ward']} {rec['location']}")
+    st.markdown(f"#### {rec['id']}　{rec['ward']}{rec.get('town', '')}　{rec['location']}")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("状態", d["status"])
-    c2.metric("頭数／耳カット済", f"{rec['cat_count']}／{rec['ear_tipped_count']}")
-    c3.metric("次回報告期限", d["next_report_due"].isoformat() if d["next_report_due"] else "—")
-    c4.metric("更新期限", d["renewal_due"].isoformat() if d["renewal_due"] else "—")
+    c2.metric("頭数／手術済", f"{rec['cat_count']}／{rec['ear_tipped_count']}")
+    c3.metric("次回報告期限", d["next_report_due"].isoformat() if d["next_report_due"] else "—",
+              help=f"基準日（登録日と同月日）{d['next_report_base']} から{(rec.get('rules') or {}).get('annual_report_window_days')}日以内" if d["next_report_base"] else None)
+    c4.metric("更新満了日", d["renewal_due"].isoformat() if d["renewal_due"] else "—",
+              help=f"更新申請は {d['renewal_open']} から満了日まで" if d["renewal_open"] else None)
+    if d["status"] == "更新待ち":
+        st.warning(f"更新申請の受付期間です（{d['renewal_open']} 〜 {d['renewal_due']}）。第2号様式と実施計画書の提出が必要です。")
     if not rec.get("registered_date"):
         st.markdown("**職員の操作**　書類審査・現地調査が済んだら登録します。")
         reg_date = st.date_input("登録日", value=dt.date.today(), key="reg_date")
@@ -326,7 +337,7 @@ elif step.startswith("6."):
         if not rec.get("reports"):
             st.caption("報告はまだありません。")
         for rp in sorted(rec.get("reports", []), key=lambda r: r["date"], reverse=True):
-            st.markdown(f"**{rp['date']}**　頭数 {rp['cat_count']}／耳カット済 {rp['ear_tipped_count']}／手術 {rp.get('surgeries', '—')}頭  \n{rp['summary']}")
+            st.markdown(f"**{rp['date']}**　頭数 {rp['cat_count']}／手術済 {rp['ear_tipped_count']}／この1年の手術 {rp.get('surgeries', '—')}頭  \n{rp['summary']}")
 
 # ---------- 7. 年次報告 ----------
 elif step.startswith("7."):
@@ -338,26 +349,31 @@ elif step.startswith("7."):
         st.stop()
     ids = [r["id"] for r in registered]
     default = ids.index(ss.submitted_id) if ss.submitted_id in ids else 0
-    cid = st.selectbox("報告するコロニー", ids, index=default, format_func=lambda i: f"{i}　{registry.get(i)['ward']} {registry.get(i)['location']}")
+    cid = st.selectbox("報告するコロニー", ids, index=default, format_func=lambda i: f"{i}　{registry.get(i)['ward']}{registry.get(i).get('town', '')} {registry.get(i)['location']}")
     if ss.get("report_cid") != cid:
         ss.report_cid = cid
         ss.report_chat, ss.report_draft, ss.report_done = [], None, False
     rec = registry.get(cid)
     d = registry.deadlines(rec)
-    st.markdown(f"状態：**{d['status']}**　次回報告期限：{d['next_report_due'].isoformat() if d['next_report_due'] else '—'}")
+    st.markdown(f"状態：**{d['status']}**　次回報告：基準日 {d['next_report_base'] or '—'} ／ 期限 {d['next_report_due'] or '—'}")
     if ss.report_done:
         st.success("提出しました。「6. 自治体面」で状態を確認できます。")
+        if ss.get("report_docx"):
+            st.download_button("第５号様式（活動状況報告書）DOCX をダウンロード", data=ss.report_docx, file_name=f"houkoku_{cid}_{dt.date.today().isoformat()}.docx",
+                               mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
         st.stop()
     if not ss.report_chat:
-        ss.report_chat.append({"role": "assistant", "content": f"年次報告を受け付けます。登録時は{rec.get('cat_count')}頭（耳カット済{rec.get('ear_tipped_count')}頭）でした。現在の頭数と、耳カット済みの頭数を教えてください。"})
+        ss.report_chat.append({"role": "assistant", "content": f"活動状況報告（第５号様式）を受け付けます。前回時点は{rec.get('cat_count')}頭（手術済{rec.get('ear_tipped_count')}頭）でした。現在管理する猫の頭数と、うち手術済の頭数を教えてください。"})
     for m in ss.report_chat:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
     if ss.report_draft:
         rp = ss.report_draft
-        st.markdown(f"**報告内容**　頭数 {rp['cat_count']}／耳カット済 {rp['ear_tipped_count']}／手術 {rp['surgeries']}頭  \n{rp['summary']}")
+        st.markdown(f"**第５号様式の内容**　現在管理する猫 {rp['cat_count']}頭／うち手術済 {rp['ear_tipped_count']}頭／この1年の手術 {rp['surgeries']}頭  \n{rp['summary']}")
         if st.button("医療衛生センターへ提出", type="primary"):
-            registry.submit_report(cid, {"date": dt.date.today().isoformat(), **rp})
+            today = dt.date.today()
+            registry.submit_report(cid, {"date": today.isoformat(), **rp})
+            ss.report_docx = report.build_report_docx(profile, rec, rp, today)
             ss.report_done = True
             st.rerun()
     user_text = st.chat_input("回答を入力", disabled=ss.report_draft is not None)
