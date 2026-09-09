@@ -218,3 +218,25 @@ def dispatch(task: str, ctx: dict):
     if task == "intake":
         return _intake(ctx)
     raise KeyError(f"mock: unknown task {task}")
+
+
+def _report(ctx) -> dict:
+    """年次報告の台本。2ターンで完了する。"""
+    rec = ctx["record"]
+    turn = len([m for m in ctx["history"] if m["role"] == "user"])
+    n0, e0 = rec.get("cat_count") or 0, rec.get("ear_tipped_count") or 0
+    if turn <= 1:
+        return {"reply": f"現在{n0 + 1}頭、全頭耳カット済みで記録しました。この1年で手術した頭数と、変化（新しく来た猫・いなくなった猫・苦情の有無）を教えてください。", "report": None, "complete": False}
+    n1 = n0 + 1
+    e1 = n1
+    rep = {"cat_count": n1, "ear_tipped_count": e1, "surgeries": n1 - e0, "summary": f"登録時{n0}頭から{n1}頭。未手術{n0 - e0}頭と新規流入1頭の計{n1 - e0}頭を手術し、全頭耳カット済。苦情なし。"}
+    return {"reply": f"以上で年次報告の内容が揃いました。\n\n現在{n1}頭（全頭耳カット済）、この1年の手術{n1 - e0}頭、新規流入1頭、苦情なし。\n\n「提出」を押すと医療衛生センターの台帳に反映されます。", "report": rep, "complete": True}
+
+
+_dispatch_base = dispatch
+
+
+def dispatch(task: str, ctx: dict):  # noqa: F811
+    if task == "report":
+        return _report(ctx)
+    return _dispatch_base(task, ctx)
