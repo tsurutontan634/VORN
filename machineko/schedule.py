@@ -36,6 +36,20 @@ TIMELINE_SCHEMA = {
         "annual_report_window_days": {"type": ["integer", "null"]},
         "registration_validity_years": {"type": ["integer", "null"]},
         "renewal_window_days_before": {"type": ["integer", "null"]},
+        "application_window": {
+            "type": ["object", "null"],
+            "additionalProperties": False,
+            "properties": {
+                "from_day": {"type": "integer"},
+                "to_day": {"type": ["integer", "null"]},
+                "ticket_month_offset": {"type": "integer"},
+                "valid_months": {"type": "integer"},
+                "max_tickets": {"type": ["integer", "null"]},
+                "report_required_before_next": {"type": "boolean"},
+                "source_quote": {"type": "string"},
+            },
+            "required": ["from_day", "to_day", "ticket_month_offset", "valid_months", "max_tickets", "report_required_before_next", "source_quote"],
+        },
         "renewal_note": {"type": "string"},
         "termination_note": {"type": "string"},
         "other_deadlines": {
@@ -52,7 +66,7 @@ TIMELINE_SCHEMA = {
             },
         },
     },
-    "required": ["steps", "annual_report_interval_months", "annual_report_window_days", "registration_validity_years", "renewal_window_days_before", "renewal_note", "termination_note", "other_deadlines"],
+    "required": ["steps", "annual_report_interval_months", "annual_report_window_days", "registration_validity_years", "renewal_window_days_before", "application_window", "renewal_note", "termination_note", "other_deadlines"],
 }
 
 TIMELINE_SYSTEM = """あなたは自治体の地域猫活動支援制度の事務担当者です。
@@ -148,3 +162,51 @@ def build_timeline(spec: dict, anchors: Anchors) -> list[TimelineRow]:
     else:
         rows.append(mk("renewal", None, "登録日が決まると自動計算" if validity else "資料に有効期間の記載なし"))
     return rows
+
+
+# ---- 受付期間からの最短日程 ----
+
+def _month_start(d: dt.date) -> dt.date:
+    return d.replace(day=1)
+
+
+def _month_end(d: dt.date) -> dt.date:
+    return add_months(_month_start(d), 1) - dt.timedelta(days=1)
+
+
+def earliest_schedule(spec: dict, ready: dt.date) -> dict | None:
+    """受付期間の定めがある制度で、準備完了日から最短の申請日・チケット有効期間を出す。
+    返り値: {apply, valid_from, valid_until, missed_apply, missed_valid_from, delay_days}。定めが無ければ None。"""
+    w = (spec or {}).get("application_window")
+    if not w:
+        return None
+    from_day, to_day = w["from_day"], w["to_day"]
+
+    def window_of(month_start: dt.date) -> tuple[dt.date, dt.date]:
+        end = _month_end(month_start)
+        a = month_start.replace(day=min(from_day, end.day))
+        b = end if to_day is None else month_start.replace(day=min(to_day, end.day))
+        return a, b
+
+    def next_apply(after: dt.date) -> dt.date:
+        m = _month_start(after)
+        for _ in range(3):
+            a, b = window_of(m)
+            if after <= b:
+                return max(after, a)
+            m = add_months(m, 1)
+        return m
+
+    apply = next_apply(ready)
+    valid_from = add_months(_month_start(apply), w["ticket_month_offset"])
+    valid_until = add_months(valid_from, w["valid_months"]) - dt.timedelta(days=1)
+    # 1回逃した場合：その受付期間の翌日以降で次の申請
+    _, b = window_of(_month_start(apply))
+    missed_apply = next_apply(b + dt.timedelta(days=1))
+    missed_valid_from = add_months(_month_start(missed_apply), w["ticket_month_offset"])
+    return {
+        "apply": apply, "valid_from": valid_from, "valid_until": valid_until,
+        "missed_apply": missed_apply, "missed_valid_from": missed_valid_from,
+        "delay_days": (missed_valid_from - valid_from).days,
+        "wait_days": (valid_from - ready).days,
+    }

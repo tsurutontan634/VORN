@@ -42,8 +42,15 @@ def next_actions(*, spec: dict | None, intake_complete: bool, findings: dict | N
     if record is None:
         need = _docs(spec, "apply") or ["登録申請書", "活動実施計画書"]
         done = {"registration", "plan"} <= forms_done
-        out.append({"title": _label(spec, "apply", "申請書類を提出する"), "due": None, "docs": need,
-                    "note": "3. 書類出力で作成し、提出ボタンで台帳に載せます" if not done else "2様式は作成済み。提出ボタンを押してください", "level": "now"})
+        note = "3. 書類出力で作成し、提出ボタンで台帳に載せます" if not done else "2様式は作成済み。提出ボタンを押してください"
+        due = None
+        if spec and spec.get("application_window"):
+            from .schedule import earliest_schedule
+
+            e = earliest_schedule(spec, today)
+            due = e["apply"] if e["apply"] > today else None
+            note += f"。今出すと有効期間 {e['valid_from']} 〜 {e['valid_until']}、この受付を逃すと +{e['delay_days']} 日"
+        out.append({"title": _label(spec, "apply", "申請書類を提出する"), "due": due, "docs": need, "note": note, "level": "now"})
         return out
     if not record.get("registered_date"):
         out.append({"title": _label(spec, "review", "審査・現地調査を待つ"), "due": None, "docs": [], "note": f"台帳ID {record['id']}。日程は自治体から連絡があります", "level": "wait"})

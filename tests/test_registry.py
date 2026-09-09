@@ -4,7 +4,7 @@ from machineko.registry import Registry
 
 
 def _reg(tmp_path):
-    return Registry(path=tmp_path / "registry.json")
+    return Registry("kyoto", path=tmp_path / "registry.json")
 
 
 def test_seed_statuses(tmp_path):
@@ -37,4 +37,18 @@ def test_apply_register_report_flow(tmp_path):
     assert r.deadlines(r.get(rec["id"]), dt.date(2029, 8, 15))["status"] == "更新待ち"
     assert r.deadlines(r.get(rec["id"]), dt.date(2029, 9, 10))["status"] == "期限超過"
     # 永続化
-    assert Registry(path=tmp_path / "registry.json").get(rec["id"])["cat_count"] == 12
+    assert Registry("kyoto", path=tmp_path / "registry.json").get(rec["id"])["cat_count"] == 12
+
+
+def test_ticket_type(tmp_path):
+    r = Registry("takashima", path=tmp_path / "t.json")
+    st = {row["ID"]: row["状態"] for row in r.rows(dt.date(2026, 9, 9))}
+    assert st == {"T-2026-003": "期限超過", "T-2026-005": "報告待ち", "T-2026-007": "申請中"}
+    spec = {"application_window": {"from_day": 6, "to_day": None, "ticket_month_offset": 2, "valid_months": 1, "max_tickets": None, "report_required_before_next": True, "source_quote": ""}}
+    rec = r.submit_application({"town": "x", "cat_count": 6, "ear_tipped_count": 0, "members": [{"name": "森"}]}, {}, dt.date(2026, 9, 9), spec)
+    assert rec["kind"] == "ticket" and rec["tickets"] == 6 and rec["ticket_valid_from"] == "2026-11-01"
+    r.register(rec["id"], dt.date(2026, 10, 20))
+    assert r.deadlines(r.get(rec["id"]), dt.date(2026, 10, 25))["status"] == "交付済"
+    assert r.deadlines(r.get(rec["id"]), dt.date(2026, 11, 10))["status"] == "報告待ち"
+    r.submit_report(rec["id"], {"date": "2026-11-20", "cat_count": 6, "ear_tipped_count": 6, "surgeries": 6, "summary": "s"})
+    assert r.deadlines(r.get(rec["id"]), dt.date(2026, 12, 5))["status"] == "報告済"

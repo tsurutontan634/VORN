@@ -49,13 +49,13 @@ def get_profile(mid: str):
 
 
 @st.cache_resource
-def get_registry() -> Registry:
-    return Registry()
+def get_registry(mid: str) -> Registry:
+    return Registry(mid)
 
 
 llm = get_llm()
 profile = get_profile(ss.municipality)
-registry = get_registry()
+registry = get_registry(ss.municipality)
 
 
 def reset_derived():
@@ -72,11 +72,13 @@ with st.sidebar:
     mids = list_municipalities()
     mid = st.selectbox("自治体プロファイル", mids, index=mids.index(ss.municipality))
     if mid != ss.municipality:
+        for k in list(ss.keys()):
+            del ss[k]
         ss.municipality = mid
         st.rerun()
     step = st.radio(
         "工程",
-        ["1. 聞き取り", "2. 要綱照合", "3. 書類出力", "4. 周知チラシ", "5. 日程表", "6. 自治体面：登録コロニー一覧", "7. 年次報告"],
+        ["1. 聞き取り", "2. 要綱照合", "3. 書類出力", "4. 周知チラシ", "5. 日程表", "6. 自治体面：登録コロニー一覧", "7. 報告"],
         label_visibility="collapsed",
     )
     st.divider()
@@ -94,20 +96,25 @@ with st.sidebar:
             st.caption("画像だけの PDF はテキストが取れないため LLM に渡していません。")
     st.divider()
     if st.button("デモ用のコロニー情報を読み込む", use_container_width=True):
-        ss.colony = Colony.from_dict(json.loads((Path("demo") / "sample_colony.json").read_text(encoding="utf-8")))
+        sample = Path("demo") / f"sample_colony_{profile.id}.json"
+        if not sample.exists():
+            sample = Path("demo") / "sample_colony.json"
+        ss.colony = Colony.from_dict(json.loads(sample.read_text(encoding="utf-8")))
         ss.intake_complete = True
         ss.chat = [{"role": "assistant", "content": "デモ用のコロニー情報を読み込みました。内容は右側に表示しています。"}]
         reset_derived()
         st.rerun()
     if st.button("すべてリセット（台帳もデモ初期状態に戻す）", use_container_width=True):
         registry.reset()
+        keep = ss.municipality
         for k in list(ss.keys()):
             del ss[k]
+        ss.municipality = keep
         st.rerun()
 
 # ---------- header ----------
 st.markdown(f"#### {profile.name}　{profile.program_name}")
-st.caption("対象：町内会等への説明と同意が済んだ後 〜 完了報告まで。捕獲の手順・自治会への説得・里親探し・子猫の育て方は扱いません。")
+st.caption("対象：地域の同意が済んだ後 〜 完了報告まで。捕獲の手順・自治会への説得・里親探し・子猫の育て方は扱いません。担い手を増やさず、制度と担い手の間の時間と引継ぎの摩擦だけを消します。")
 
 
 def next_actions_card():
@@ -292,7 +299,7 @@ elif step.startswith("5."):
             st.rerun()
     else:
         spec = ss.timeline_spec
-        st.markdown("**基準日**（決まっているものだけ入力。登録日を入れると年次報告と更新の期限が出ます）")
+        st.markdown("**基準日**（決まっているものだけ入力。登録日を入れると報告と更新の期限が出ます）")
         a = ss.anchors
         c = st.columns(6)
         labels = [("apply", "申請日"), ("register", "登録日"), ("notify", "周知日"), ("trap", "捕獲日"), ("surgery", "持込日"), ("return_", "リターン日")]
@@ -308,6 +315,21 @@ elif step.startswith("5."):
             st.caption(f"登録日は台帳（{ss.submitted_id}）の値を使っています。")
         anchors = schedule.Anchors(**a)
         rows = schedule.build_timeline(spec, anchors)
+        st.markdown("---")
+        w = spec.get("application_window")
+        if w:
+            st.markdown("**最短日程（受付期間から計算）**")
+            ready = st.date_input("準備完了日（申請書類が揃う日）", value=dt.date.today(), key="ready_date")
+            e = schedule.earliest_schedule(spec, ready)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("最短の申請日", e["apply"].isoformat())
+            c2.metric("チケット有効期間", f"{e['valid_from']} 〜 {e['valid_until']}", help=f"準備完了から {e['wait_days']} 日")
+            c3.metric("この受付を逃すと", f"+{e['delay_days']} 日", help=f"次の申請 {e['missed_apply']}、有効 {e['missed_valid_from']} から")
+            st.caption(f"受付：毎月{w['from_day']}日〜{w['to_day'] or '末'}日、交付は申請月の{w['ticket_month_offset']}か月後の分、{w['valid_months']}か月有効"
+                       + (f"、上限{w['max_tickets']}枚" if w.get("max_tickets") else "") + "。出典：「" + w["source_quote"] + "」")
+            st.caption("規則で決まる待ちはツールでは消せません。消せるのは、受付を逃す・報告を落とす・書類の不備で戻される、の3つです。")
+        else:
+            st.caption("この制度には受付期間の定め（毎月◯日〜、翌月分など）がありません。審査・現地調査の日数は自治体の裁量で、資料に記載がありません。")
         st.markdown("---")
         for r in rows:
             d = r.date.strftime("%Y-%m-%d（%a）") if r.date else "—"
@@ -329,7 +351,7 @@ elif step.startswith("5."):
 # ---------- 6. 自治体面 ----------
 elif step.startswith("6."):
     st.subheader("6. 自治体面：登録コロニー一覧")
-    st.caption(f"{profile.office}の職員が見る画面。市民面で提出された申請・報告がそのまま載ります。状態は、要綱から抽出した期限ルール（報告は登録日と同月日から◯日以内、更新は満了日の◯日前から）と報告履歴から計算しています。")
+    st.caption(f"{profile.office}の職員が見る画面。市民面で提出された申請・報告がそのまま載ります。状態は、要綱から抽出した期限ルールと報告履歴から計算しています。「期限超過」のうち届出が無いものは、この一覧が無ければ理由が残らない地域です。")
     rows = registry.rows()
     counts = {}
     for r in rows:
@@ -345,19 +367,26 @@ elif step.startswith("6."):
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("状態", d["status"])
     c2.metric("頭数／手術済", f"{rec['cat_count']}／{rec['ear_tipped_count']}")
-    c3.metric("次回報告期限", d["next_report_due"].isoformat() if d["next_report_due"] else "—",
-              help=f"基準日（登録日と同月日）{d['next_report_base']} から{(rec.get('rules') or {}).get('annual_report_window_days')}日以内" if d["next_report_base"] else None)
-    c4.metric("更新満了日", d["renewal_due"].isoformat() if d["renewal_due"] else "—",
-              help=f"更新申請は {d['renewal_open']} から満了日まで" if d["renewal_open"] else None)
+    if rec.get("kind") == "ticket":
+        c3.metric("報告期限（有効月末）", d["next_report_due"].isoformat() if d["next_report_due"] else "—", help=f"有効期間 {rec.get('ticket_valid_from')} 〜")
+        c4.metric("チケット枚数", rec.get("tickets") or "—")
+    else:
+        c3.metric("次回報告期限", d["next_report_due"].isoformat() if d["next_report_due"] else "—",
+                  help=f"基準日（登録日と同月日）{d['next_report_base']} から{(rec.get('rules') or {}).get('annual_report_window_days')}日以内" if d["next_report_base"] else None)
+        c4.metric("更新満了日", d["renewal_due"].isoformat() if d["renewal_due"] else "—",
+                  help=f"更新申請は {d['renewal_open']} から満了日まで" if d["renewal_open"] else None)
     if d["status"] == "更新待ち":
         st.warning(f"更新申請の受付期間です（{d['renewal_open']} 〜 {d['renewal_due']}）。第2号様式と実施計画書の提出が必要です。")
     if not rec.get("registered_date"):
-        st.markdown("**職員の操作**　書類審査・現地調査が済んだら登録します。")
-        reg_date = st.date_input("登録日", value=dt.date.today(), key="reg_date")
-        if st.button("登録する", type="primary"):
+        is_ticket = rec.get("kind") == "ticket"
+        st.markdown("**職員の操作**　" + ("基金からチケットが届いたら交付日を入れます。" if is_ticket else "書類審査・現地調査が済んだら登録します。"))
+        if is_ticket:
+            st.caption(f"有効期間 {rec.get('ticket_valid_from')} 〜 {rec.get('ticket_valid_until')}／申請枚数 {rec.get('tickets')}")
+        reg_date = st.date_input("交付日" if is_ticket else "登録日", value=dt.date.today(), key="reg_date")
+        if st.button("チケットを交付する" if is_ticket else "登録する", type="primary"):
             registry.register(cid, reg_date)
             st.rerun()
-    tab1, tab2 = st.tabs(["提出された申請書・計画書", f"年次報告（{len(rec.get('reports', []))}件）"])
+    tab1, tab2 = st.tabs(["提出された申請書類", f"報告（{len(rec.get('reports', []))}件）"])
     with tab1:
         if not rec.get("documents"):
             st.caption("（ダミーデータのため書類は未登録）")
@@ -373,11 +402,12 @@ elif step.startswith("6."):
 
 # ---------- 7. 年次報告 ----------
 elif step.startswith("7."):
-    st.subheader("7. 年次報告（市民面）")
-    st.caption("登録済みコロニーの活動状況を会話で報告します。提出すると自治体面の状態が変わります。")
+    rep_label = next((s["label"] for s in (ss.timeline_spec or {}).get("steps", []) if s["key"] == "annual_report"), "報告")
+    st.subheader(f"7. 報告（市民面）：{rep_label}")
+    st.caption("会話で内容を集めて報告書にし、提出すると自治体面の状態が変わります。")
     registered = [r for r in registry.all() if r.get("registered_date")]
     if not registered:
-        st.warning("登録済みのコロニーがありません。「6. 自治体面」で登録してください。")
+        st.warning("登録（交付）済みのコロニーがありません。「6. 自治体面」で登録してください。")
         st.stop()
     ids = [r["id"] for r in registered]
     default = ids.index(ss.submitted_id) if ss.submitted_id in ids else 0
@@ -391,21 +421,21 @@ elif step.startswith("7."):
     if ss.report_done:
         st.success("提出しました。「6. 自治体面」で状態を確認できます。")
         if ss.get("report_docx"):
-            st.download_button("第５号様式（活動状況報告書）DOCX をダウンロード", data=ss.report_docx, file_name=f"houkoku_{cid}_{dt.date.today().isoformat()}.docx",
+            st.download_button("報告書 DOCX をダウンロード", data=ss.report_docx, file_name=f"houkoku_{cid}_{dt.date.today().isoformat()}.docx",
                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
         st.stop()
     if not ss.report_chat:
-        ss.report_chat.append({"role": "assistant", "content": f"活動状況報告（第５号様式）を受け付けます。前回時点は{rec.get('cat_count')}頭（手術済{rec.get('ear_tipped_count')}頭）でした。現在管理する猫の頭数と、うち手術済の頭数を教えてください。"})
+        ss.report_chat.append({"role": "assistant", "content": f"{rep_label}を受け付けます。前回時点は{rec.get('cat_count')}頭（手術済{rec.get('ear_tipped_count')}頭）でした。現在管理する猫の頭数と、うち手術済の頭数を教えてください。"})
     for m in ss.report_chat:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
     if ss.report_draft:
         rp = ss.report_draft
-        st.markdown(f"**第５号様式の内容**　現在管理する猫 {rp['cat_count']}頭／うち手術済 {rp['ear_tipped_count']}頭／この1年の手術 {rp['surgeries']}頭  \n{rp['summary']}")
+        st.markdown(f"**報告書の内容**　現在管理する猫 {rp['cat_count']}頭／うち手術済 {rp['ear_tipped_count']}頭／手術 {rp['surgeries']}頭  \n{rp['summary']}")
         if st.button("医療衛生センターへ提出", type="primary"):
             today = dt.date.today()
             registry.submit_report(cid, {"date": today.isoformat(), **rp})
-            ss.report_docx = report.build_report_docx(profile, rec, rp, today)
+            ss.report_docx = report.build_report_docx(profile, rec, rp, today, ss.timeline_spec)
             ss.report_done = True
             st.rerun()
     user_text = st.chat_input("回答を入力", disabled=ss.report_draft is not None)

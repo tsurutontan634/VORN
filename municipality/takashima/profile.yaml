@@ -1,0 +1,33 @@
+# 自治体プロファイル：高島市（どうぶつ基金「さくらねこ無料不妊手術事業」行政枠に参加）
+# 京都市と違い、自治体（チケット交付）＋基金（チケット規約・協力病院）の2層。規則はここに書かない。
+id: takashima
+name: 高島市
+program_name: さくらねこ無料不妊手術事業（行政枠）
+office: 高島市 環境政策課
+contacts:
+  - 高島市役所 環境政策課（電話番号は市HPで確認）
+homepage: https://www.city.takashima.lg.jp/soshiki/kankyobu/kankyoseisakuka/2924.html
+
+sources:
+  - file: takashima_page.md
+    role: 高島市HP「無料不妊手術チケット交付の流れ」本文（交付要綱PDFは未取得）
+    url: https://www.city.takashima.lg.jp/soshiki/kankyobu/kankyoseisakuka/2924.html
+  - file: kikin_faq.md
+    role: どうぶつ基金 チケットFAQ（抜粋）
+    url: https://sakuraneko-tnr.doubutukikin.or.jp/faq
+  - file: kikin_register.md
+    role: どうぶつ基金 登録・チケット規約（一般枠の流れ）
+    url: https://sakuraneko-tnr.doubutukikin.or.jp/about/register
+
+# 配布様式は .doc（旧Word）と PDF のみで DOCX が無いため、要綱の項目に沿ってゼロから生成する。
+forms:
+  registration:
+    label: 様式第1号 飼い主のいない猫不妊手術事業実施団体届出書
+    template: null
+  plan:
+    label: 様式第2号 さくらねこ無料不妊手術チケット交付申請書
+    template: null
+  report:
+    label: 第5号様式 さくらねこ無料不妊手術チケット利用報告書
+    template: null
+    after_registration: true

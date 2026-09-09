@@ -1,0 +1,39 @@
+{
+  "ward": "",
+  "town": "今津町◯◯",
+  "location": "琵琶湖岸の民宿裏の空き地",
+  "cat_count": 6,
+  "ear_tipped_count": 0,
+  "kittens_present": true,
+  "feeding_site": "民宿の裏口（民宿主人の承諾あり）",
+  "feeding_sites_count": 1,
+  "feeding_site_is_private": true,
+  "feeding_site_permission": "民宿主人（所有者）の承諾",
+  "feeding_time": "午前6時と午後5時。食べ残しは30分後に回収",
+  "feeding_people": 1,
+  "toilet_site": "空き地の隅",
+  "toilet_count": 1,
+  "cleaning_time": "午前6時",
+  "cleaning_people": 1,
+  "complaint_contact": "森 綾子（090-3333-3333）",
+  "complaint_cases": "",
+  "issues": "協力病院が市内に無く、隣の市まで車で40分。1日に運べるのは2〜3頭。",
+  "neighborhood_association": "",
+  "association_rep_name": "",
+  "association_rep_address": "",
+  "association_rep_phone": "",
+  "explained_date": "",
+  "explained_by": "",
+  "consent_obtained": null,
+  "notify_methods": [],
+  "notify_frequency_per_year": null,
+  "members": [
+    {"name": "森 綾子", "address": "高島市今津町◯◯1-1", "is_resident": true, "is_kyoto_citizen": null, "role": "代表（個人）", "phone": "090-3333-3333"}
+  ],
+  "cats": [
+    {"color": "キジトラ", "sex": "メス", "features": "母猫。子猫3頭あり"},
+    {"color": "白黒", "sex": "オス", "features": "左耳に切れ込み（喧嘩傷）"},
+    {"color": "茶トラ", "sex": "不明", "features": "若い"}
+  ],
+  "notes": "個人（市内在住）として申請。団体ではない。"
+}

@@ -50,8 +50,8 @@ def report_turn(llm, profile: MunicipalityProfile, record: dict, history: list[d
     )
 
 
-def build_report_docx(profile: MunicipalityProfile, record: dict, report: dict, date) -> bytes:
-    """第5号様式 活動状況報告書。配布 DOCX が無い様式なので、要綱の様式に沿ってゼロから組む。"""
+def build_report_docx(profile: MunicipalityProfile, record: dict, report: dict, date, spec: dict | None = None) -> bytes:
+    """報告書。配布 DOCX が無い様式なので、要綱に書かれた様式名と項目に沿ってゼロから組む。"""
     import io
 
     from .documents import build_document
@@ -70,8 +70,17 @@ def build_report_docx(profile: MunicipalityProfile, record: dict, report: dict, 
         {"label": "現在管理する猫のうち避妊去勢手術済の猫の頭数", "value": f"{report.get('ear_tipped_count')}頭"},
         {"label": "その他、まちねこ活動に関する報告事項（効果、苦情対応の状況、課題、活動内容の変更等含む）", "value": f"この1年の手術 {report.get('surgeries')}頭。{report.get('summary', '')}"},
     ]
-    doc = build_document("第５号様式（第１２条関係）　まちねこ活動状況報告書", "（宛先）京都市医療衛生センター長", fields, [],
-                         footer="※ 第5号様式は配布 DOCX が無いため、要綱記載の様式に沿って自動生成しています。")
+    form = profile.forms.get("report") or {}
+    docs = next((s.get("documents", []) for s in (spec or {}).get("steps", []) if s["key"] == "annual_report"), [])
+    title = form.get("label") or (docs[0] if docs else "活動状況報告書")
+    if record.get("kind") == "ticket":
+        fields = fields[:5] + [
+            {"label": "使用したチケット枚数／手術頭数", "value": f"{report.get('surgeries')}枚／{report.get('surgeries')}頭"},
+            {"label": "報告事項", "value": report.get("summary", "")},
+            {"label": "添付写真", "value": "全体像（手術前・後）、さくら耳部分（手術前・後）"},
+        ]
+    doc = build_document(title, f"（宛先）{profile.office}", fields, [],
+                         footer="※ 配布 DOCX が無い様式のため、資料記載の様式名・項目に沿って自動生成しています。提出時は配布様式に転記してください。")
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()

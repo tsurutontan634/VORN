@@ -1,0 +1,62 @@
+{
+  "_comment": "高島市（チケット型）のダミー。2026-09 のデモで 期限超過・報告待ち・申請中 が出る日付。rules は市HP・基金規約から抽出した値を申請時に保存したもの。",
+  "colonies": [
+    {
+      "id": "T-2026-003",
+      "kind": "ticket",
+      "ward": "",
+      "town": "マキノ町◯◯",
+      "location": "旧小学校の裏",
+      "cat_count": 9,
+      "ear_tipped_count": 4,
+      "applied_date": "2026-06-10",
+      "registered_date": "2026-07-28",
+      "ticket_valid_from": "2026-08-01",
+      "ticket_valid_until": "2026-08-31",
+      "tickets": 5,
+      "rules": {"application_window": {"from_day": 6, "to_day": null, "ticket_month_offset": 2, "valid_months": 1, "max_tickets": null, "report_required_before_next": true}},
+      "representative": "西村 恵",
+      "documents": {},
+      "reports": [],
+      "colony": {}
+    },
+    {
+      "id": "T-2026-005",
+      "kind": "ticket",
+      "ward": "",
+      "town": "安曇川町◯◯",
+      "location": "河川敷の駐車場",
+      "cat_count": 4,
+      "ear_tipped_count": 1,
+      "applied_date": "2026-07-15",
+      "registered_date": "2026-08-27",
+      "ticket_valid_from": "2026-09-01",
+      "ticket_valid_until": "2026-09-30",
+      "tickets": 3,
+      "rules": {"application_window": {"from_day": 6, "to_day": null, "ticket_month_offset": 2, "valid_months": 1, "max_tickets": null, "report_required_before_next": true}},
+      "representative": "NPO法人たかしま猫の会",
+      "documents": {},
+      "reports": [],
+      "colony": {}
+    },
+    {
+      "id": "T-2026-007",
+      "kind": "ticket",
+      "ward": "",
+      "town": "新旭町◯◯",
+      "location": "農業倉庫の周辺",
+      "cat_count": 7,
+      "ear_tipped_count": 0,
+      "applied_date": "2026-08-20",
+      "registered_date": null,
+      "ticket_valid_from": "2026-10-01",
+      "ticket_valid_until": "2026-10-31",
+      "tickets": 7,
+      "rules": {"application_window": {"from_day": 6, "to_day": null, "ticket_month_offset": 2, "valid_months": 1, "max_tickets": null, "report_required_before_next": true}},
+      "representative": "山本 隆",
+      "documents": {},
+      "reports": [],
+      "colony": {}
+    }
+  ]
+}

@@ -93,6 +93,7 @@ def _timeline_spec() -> dict:
         "annual_report_window_days": 30,
         "registration_validity_years": 3,
         "renewal_window_days_before": 30,
+        "application_window": None,
         "renewal_note": "満了日の30日前から満了日までに第2号様式と実施計画書を提出（第6条2項）。期限までに更新しないと職権で抹消されることがある（第7条3項）。",
         "termination_note": "活動を廃止するときは第3号様式（廃止届出書）を提出（第7条1項）。",
         "other_deadlines": [
@@ -311,6 +312,11 @@ def _report(ctx) -> dict:
 
 
 def dispatch(task: str, ctx: dict):
+    prof = ctx.get("profile")
+    if prof is not None and getattr(prof, "id", "kyoto") == "takashima":
+        from . import mock_takashima
+
+        return mock_takashima.dispatch(task, ctx)
     if task == "extract_rules":
         return {"rules": _rules()}
     if task == "check_colony":

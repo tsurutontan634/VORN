@@ -12,13 +12,13 @@ import json
 import shutil
 from pathlib import Path
 
-from .schedule import add_months
+from .schedule import add_months, earliest_schedule
 
 ROOT = Path(__file__).resolve().parent.parent
-SEED = ROOT / "demo" / "registry_seed.json"
-DATA = ROOT / "data" / "registry.json"
+SEED_DIR = ROOT / "demo"
+DATA_DIR = ROOT / "data"
 
-RULE_KEYS = ("annual_report_interval_months", "annual_report_window_days", "registration_validity_years", "renewal_window_days_before")
+RULE_KEYS = ("annual_report_interval_months", "annual_report_window_days", "registration_validity_years", "renewal_window_days_before", "application_window")
 
 
 def _d(s: str | None) -> dt.date | None:
@@ -26,9 +26,9 @@ def _d(s: str | None) -> dt.date | None:
 
 
 class Registry:
-    def __init__(self, path: Path = DATA, seed: Path = SEED):
-        self.path = path
-        self.seed = seed
+    def __init__(self, municipality_id: str = "kyoto", path: Path | None = None, seed: Path | None = None):
+        self.path = path or DATA_DIR / f"registry_{municipality_id}.json"
+        self.seed = seed or SEED_DIR / f"registry_seed_{municipality_id}.json"
         if not self.path.exists():
             self.reset()
         self._load()
@@ -56,12 +56,15 @@ class Registry:
     # ---- 市民面からの操作 ----
     def submit_application(self, colony: dict, documents: dict, applied_date: dt.date, spec: dict | None) -> dict:
         year = applied_date.year
-        nums = [int(c["id"].rsplit("-", 1)[1]) for c in self.all() if c["id"].startswith(f"K-{year}-")]
+        prefix = (self.all()[0]["id"][0] if self.all() else "K")
+        nums = [int(c["id"].rsplit("-", 1)[1]) for c in self.all() if c["id"].startswith(f"{prefix}-{year}-")]
         n = max(nums, default=0) + 1
         members = colony.get("members") or []
         rep = next((m for m in members if "代表" in (m.get("role") or "")), members[0] if members else {})
+        window = (spec or {}).get("application_window")
         rec = {
-            "id": f"K-{year}-{n:03d}",
+            "id": f"{prefix}-{year}-{n:03d}",
+            "kind": "ticket" if window else "registration",
             "ward": colony.get("ward", ""),
             "town": colony.get("town", ""),
             "location": colony.get("location", ""),
@@ -71,10 +74,15 @@ class Registry:
             "registered_date": None,
             "rules": {k: (spec or {}).get(k) for k in RULE_KEYS},
             "representative": rep.get("name", ""),
+            "tickets": max((colony.get("cat_count") or 0) - (colony.get("ear_tipped_count") or 0), 0) if window else None,
             "documents": {k: {"form_title": v["form_title"], "fields": v["fields"]} for k, v in documents.items()},
             "reports": [],
             "colony": colony,
         }
+        if window:
+            e = earliest_schedule(spec, applied_date)
+            rec["ticket_valid_from"] = e["valid_from"].isoformat()
+            rec["ticket_valid_until"] = e["valid_until"].isoformat()
         self.data["colonies"].append(rec)
         self._save()
         return rec
@@ -103,6 +111,8 @@ class Registry:
         today = today or dt.date.today()
         reg = _d(rec.get("registered_date"))
         rules = rec.get("rules") or {}
+        if rec.get("kind") == "ticket":
+            return Registry._ticket_deadlines(rec, today)
         interval = rules.get("annual_report_interval_months")
         window = rules.get("annual_report_window_days") or 0
         validity = rules.get("registration_validity_years")
@@ -147,6 +157,25 @@ class Registry:
             out["status"] = "登録済"
         return out
 
+    @staticmethod
+    def _ticket_deadlines(rec: dict, today: dt.date) -> dict:
+        """チケット型：交付 → 有効月に実施 → 完了報告。未報告なら次回申請不可。"""
+        vf, vu = _d(rec.get("ticket_valid_from")), _d(rec.get("ticket_valid_until"))
+        reports = sorted(rec.get("reports", []), key=lambda r: r["date"])
+        out = {"next_report_base": vf, "next_report_due": vu, "renewal_due": None, "renewal_open": None,
+               "status": "申請中", "last_report": _d(reports[-1]["date"]) if reports else None}
+        if not rec.get("registered_date"):
+            return out
+        if reports:
+            out["status"] = "報告済"
+        elif vf and today < vf:
+            out["status"] = "交付済"
+        elif vu and today > vu:
+            out["status"] = "期限超過"
+        else:
+            out["status"] = "報告待ち"
+        return out
+
     def rows(self, today: dt.date | None = None) -> list[dict]:
         rows = []
         for rec in self.all():
@@ -158,10 +187,10 @@ class Registry:
                 "頭数": rec["cat_count"],
                 "手術済": rec["ear_tipped_count"],
                 "申請日": rec["applied_date"],
-                "登録日": rec.get("registered_date") or "—",
-                "次回報告期限": d["next_report_due"].isoformat() if d["next_report_due"] else "—",
-                "更新満了日": d["renewal_due"].isoformat() if d["renewal_due"] else "—",
+                "登録日" if rec.get("kind") != "ticket" else "交付日": rec.get("registered_date") or "—",
+                "次回報告期限" if rec.get("kind") != "ticket" else "報告期限（有効月末）": d["next_report_due"].isoformat() if d["next_report_due"] else "—",
+                "更新満了日" if rec.get("kind") != "ticket" else "チケット枚数": (d["renewal_due"].isoformat() if d["renewal_due"] else "—") if rec.get("kind") != "ticket" else rec.get("tickets"),
                 "状態": d["status"],
             })
-        order = {"期限超過": 0, "報告待ち": 1, "更新待ち": 2, "申請中": 3, "報告済": 4, "登録済": 5}
+        order = {"期限超過": 0, "報告待ち": 1, "更新待ち": 2, "申請中": 3, "交付済": 4, "報告済": 5, "登録済": 6}
         return sorted(rows, key=lambda r: (order.get(r["状態"], 9), r["ID"]))
