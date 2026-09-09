@@ -1,0 +1,48 @@
+# 自治体プロファイル。ここに置いた一次資料を LLM が読んで規則を抽出する。
+# 規則そのものはこのファイルに書かない（ハードコード禁止）。
+id: kyoto
+name: 京都市
+program_name: まちねこ活動支援事業
+office: 京都市医療衛生センター
+contacts:
+  - 北東部 075-746-7211
+  - 中部 075-746-7212
+  - 南東部 075-746-7213
+  - 西部 075-746-7214
+homepage: https://www.city.kyoto.lg.jp/hokenfukushi/page/0000189400.html
+
+# sources/ に置く一次資料。role は LLM に渡すときの説明に使う。
+sources:
+  - file: yoko060401.pdf
+    role: 実施要綱（令和6年4月1日改正）
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/cmsfiles/contents/0000189/189400/yoko060401.pdf
+  - file: touroku.docx
+    role: 第1号様式 まちねこ活動登録申請書（記入用テンプレート）
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/cmsfiles/contents/0000189/189400/touroku.docx
+  - file: jissikeikaku.docx
+    role: 第6号様式 まちねこ活動実施計画書（記入用テンプレート）
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/cmsfiles/contents/0000189/189400/jissikeikaku.docx
+  - file: rei_touroku.pdf
+    role: 登録申請書の記載例
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/cmsfiles/contents/0000189/189400/rei_touroku.pdf
+  - file: rei_jissikeikaku.pdf
+    role: 活動実施計画書の記載例
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/cmsfiles/contents/0000189/189400/rei_jissikeikaku.pdf
+  - file: osirase.pdf
+    role: 参考様式 地域へのお知らせチラシ
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/cmsfiles/contents/0000189/189400/osirase.pdf
+  - file: tirasi.pdf
+    role: 事業リーフレット
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/cmsfiles/contents/0000189/189400/tirasi.pdf
+  - file: notes.md
+    role: 市HP・要綱からの抜粋メモ（一次資料が揃うまでの暫定。出典URL付き）
+    url: https://www.city.kyoto.lg.jp/hokenfukushi/page/0000189400.html
+
+# 様式のテンプレートDOCX（sources/ 内）。無ければ python-docx でゼロから生成する。
+forms:
+  registration:
+    label: 第1号様式 まちねこ活動登録申請書
+    template: touroku.docx
+  plan:
+    label: 第6号様式 まちねこ活動実施計画書
+    template: jissikeikaku.docx
