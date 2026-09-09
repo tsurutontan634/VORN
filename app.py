@@ -11,7 +11,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from machineko import documents, flyer, intake, report, rules, schedule
+from machineko import documents, flyer, intake, next_actions, report, rules, schedule
 from machineko.registry import Registry
 from machineko.colony import Colony
 from machineko.llm import LLM
@@ -35,6 +35,7 @@ ss.setdefault("submitted_id", None)   # 提出済みならその台帳ID
 ss.setdefault("report_chat", [])
 ss.setdefault("report_draft", None)
 ss.setdefault("report_done", False)
+ss.setdefault("notified", False)
 
 
 @st.cache_resource
@@ -109,6 +110,25 @@ st.markdown(f"#### {profile.name}　{profile.program_name}")
 st.caption("対象：町内会等への説明と同意が済んだ後 〜 完了報告まで。捕獲の手順・自治会への説得・里親探し・子猫の育て方は扱いません。")
 
 
+def next_actions_card():
+    """市民面の先頭に出す1枚。要綱から抽出した工程と台帳の状態から組み立てる。"""
+    rec = registry.get(ss.submitted_id) if ss.submitted_id else None
+    d = registry.deadlines(rec) if rec else None
+    acts = next_actions.next_actions(
+        spec=ss.timeline_spec, intake_complete=ss.intake_complete, findings=ss.findings, forms_done=set(ss.forms.keys()),
+        record=rec, deadlines=d, notified=ss.notified or ss.flyer is not None, surgery_form_done="surgery" in ss.forms,
+    )
+    icon = {"now": "🔴", "soon": "🟡", "wait": "⏳", "late": "‼️"}
+    with st.container(border=True):
+        st.markdown("**次にやること**" + (f"　<small>台帳ID {rec['id']}／状態 {d['status']}</small>" if rec else ""), unsafe_allow_html=True)
+        for x in acts:
+            due = f"　期限 **{x['due']}**" if x["due"] else ""
+            docs = f"　提出物：{'、'.join(x['docs'])}" if x["docs"] else ""
+            st.markdown(f"{icon[x['level']]} {x['title']}{due}  \n<small>{x['note']}{docs}</small>", unsafe_allow_html=True)
+        if ss.timeline_spec is None:
+            st.caption("要綱から工程を抽出すると、様式名と期限が入ります（5. 日程表）。")
+
+
 def colony_panel():
     st.markdown("**コロニー情報**")
     for line in ss.colony.summary_lines():
@@ -116,6 +136,9 @@ def colony_panel():
     with st.expander("JSON"):
         st.code(ss.colony.to_json(), language="json")
 
+
+if not step.startswith("6."):
+    next_actions_card()
 
 # ---------- 1. 聞き取り ----------
 if step.startswith("1."):
@@ -202,7 +225,15 @@ elif step.startswith("3."):
         with col:
             st.markdown(f"**{form['label']}**")
             tpl = profile.template_path(key)
-            st.caption("配布様式に転記" if tpl else "配布様式が未配置のため代替生成")
+            if form.get("after_registration"):
+                st.caption("登録後に提出する様式。配布DOCXが無いので要綱の様式に沿って生成")
+                n_default = max((ss.colony.cat_count or 0) - (ss.colony.ear_tipped_count or 0), 1)
+                rows = ss.colony.cats or [{"color": "", "sex": "不明", "features": ""} for _ in range(n_default)]
+                edited = st.data_editor(rows, num_rows="dynamic", key=f"cats_{key}", use_container_width=True,
+                                        column_config={"color": "毛色", "sex": st.column_config.SelectboxColumn("性別", options=["オス", "メス", "不明"]), "features": "特徴"})
+                ss.colony.cats = [dict(r) for r in edited]
+            else:
+                st.caption("配布様式に転記" if tpl else "配布様式が未配置のため代替生成")
             if st.button("作成", key=f"make_{key}"):
                 with st.spinner("記入しています…"):
                     filled = documents.fill_form_fields(llm, profile, ss.colony, key, apply_date)
@@ -220,7 +251,7 @@ elif step.startswith("3."):
                 if fm["filled"]["notes_for_applicant"]:
                     st.info("\n".join(f"- {n}" for n in fm["filled"]["notes_for_applicant"]))
     st.divider()
-    both = all(k in ss.forms for k in profile.forms)
+    both = all(k in ss.forms for k, f in profile.forms.items() if not f.get("after_registration"))
     if ss.submitted_id:
         st.success(f"提出済み。台帳ID {ss.submitted_id}。「6. 自治体面」で一覧に載っています。")
     else:
@@ -229,7 +260,7 @@ elif step.startswith("3."):
             if ss.timeline_spec is None:
                 with st.spinner("報告・更新の期限を要綱から読んでいます…"):
                     ss.timeline_spec = schedule.extract_timeline_spec(llm, profile)
-            rec = registry.submit_application(ss.colony.to_dict(), {k: v["filled"] for k, v in ss.forms.items()}, apply_date, ss.timeline_spec)
+            rec = registry.submit_application(ss.colony.to_dict(), {k: v["filled"] for k, v in ss.forms.items() if not profile.forms[k].get("after_registration")}, apply_date, ss.timeline_spec)
             ss.submitted_id = rec["id"]
             st.rerun()
 
@@ -245,6 +276,7 @@ elif step.startswith("4."):
     if st.button("作成", type="primary"):
         with st.spinner("作成しています…"):
             ss.flyer = flyer.generate_flyer(llm, profile, ss.colony, period)
+            ss.notified = True
     if ss.flyer:
         st.text_area("本文", ss.flyer, height=520)
         st.download_button("テキストをダウンロード", data=ss.flyer.encode("utf-8"), file_name="osirase.txt", mime="text/plain")

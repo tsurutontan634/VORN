@@ -24,13 +24,13 @@ def test_end_to_end_mock():
     assert rules.check_colony(llm, p, r, c2)["ready_to_apply"] is False
 
     import docx, io
-    for key in p.forms:
+    for key, form in p.forms.items():
         filled = documents.fill_form_fields(llm, p, c, key, dt.date(2026, 9, 15))
         data, how = documents.render_docx(p, key, filled)
-        assert "配布様式" in how
+        assert ("配布様式" in how) == bool(form.get("template"))
         d = docx.Document(io.BytesIO(data))
         text = "\n".join(cell.text for t in d.tables for row in t.rows for cell in row.cells)
-        assert "山田 花子" in text and "11" in text
+        assert "山田 花子" in text and ("11" in text or form.get("after_registration"))
 
     assert "まちねこ活動のお知らせ" in flyer.generate_flyer(llm, p, c, "")
 

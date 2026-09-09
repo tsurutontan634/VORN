@@ -46,3 +46,7 @@ forms:
   plan:
     label: 第6号様式 まちねこ活動実施計画書
     template: jissikeikaku.docx
+  surgery:
+    label: 第4号様式 まちねこ避妊去勢手術実施申請書
+    template: null   # 配布DOCXなし。要綱PDF内の様式に沿って生成
+    after_registration: true

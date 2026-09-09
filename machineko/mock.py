@@ -165,6 +165,23 @@ def _fill(ctx, form_key: str) -> dict:
                  "裏面の記載事項（給餌管理、トイレ清掃、全頭手術、保護器の扱い等）に活動者全員が同意している必要があります。"]
         return {"form_title": "第１号様式 まちねこ活動登録申請書", "addressed_to": "（宛先）京都市医療衛生センター長", "fields": fields, "cell_edits": edits, "notes_for_applicant": notes}
 
+    if form_key == "surgery":
+        cats = c.get("cats") or []
+        fields = [
+            {"label": "提出日", "value": apply_w, "status": "記入済" if apply_date else "未入力"},
+            {"label": "住所／活動者氏名／電話", "value": f"{rep.get('address','')}／{rep.get('name','')}／{rep.get('phone','')}", "status": "記入済"},
+            {"label": "登録地域名", "value": f"{c.get('ward','')}{c.get('town','')}", "status": "記入済"},
+        ]
+        for i, cat in enumerate(cats, 1):
+            sex = cat.get("sex") or "不明"
+            fields.append({"label": f"番号{i}　毛色／性別／特徴", "value": f"{cat.get('color','')}／{'☑' if sex=='オス' else '□'}オス {'☑' if sex=='メス' else '□'}メス {'☑' if sex=='不明' else '□'}不明／{cat.get('features','')}", "status": "記入済" if cat.get("color") else "未入力"})
+        if not cats:
+            fields.append({"label": "番号1　毛色／性別／特徴", "value": "", "status": "未入力"})
+        notes = ["裏面（手術内容・危険性・手術前12時間の絶食）を理解し同意したうえで提出します。",
+                 "手術日と放猫日は「ここは記入しないで下さい」欄で、センター側が記入します。",
+                 "この様式は登録後に提出するものです（要綱第9条）。"]
+        return {"form_title": "第４号様式 まちねこ避妊去勢手術実施申請書", "addressed_to": "（宛先）京都市医療衛生センター長", "fields": fields, "cell_edits": [], "notes_for_applicant": notes}
+
     # 第6号様式
     ey, em, ed = _wareki_parts(c.get("explained_date", ""))
     methods_all = ["町内会への説明", "回覧板", "掲示板", "投函"]

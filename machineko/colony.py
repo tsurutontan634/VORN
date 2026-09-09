@@ -54,6 +54,8 @@ class Colony:
     notify_frequency_per_year: int | None = None  # 周知の頻度（年 回）
     # 活動者
     members: list[Member] = dataclasses.field(default_factory=list)
+    # 手術を申請する猫（第4号様式用）。{"color","sex","features"}
+    cats: list[dict] = dataclasses.field(default_factory=list)
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -66,6 +68,8 @@ class Colony:
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
         if known.get("notify_methods") is None:
             known["notify_methods"] = []
+        if known.get("cats") is None:
+            known["cats"] = []
         return cls(members=members, **known)
 
     def to_json(self) -> str:
@@ -149,6 +153,9 @@ _PROPS = {
             "required": ["name", "address", "is_resident", "is_kyoto_citizen", "role", "phone"],
         },
     },
+    "cats": {"type": ["array", "null"], "items": {"type": "object", "additionalProperties": False,
+             "properties": {"color": {"type": "string"}, "sex": {"type": "string"}, "features": {"type": "string"}},
+             "required": ["color", "sex", "features"]}},
     "notes": _s(),
 }
 
