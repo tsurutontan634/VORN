@@ -243,10 +243,10 @@ if step == 1:
                 st.markdown(m["content"])
         out = chat_turn("chat", lambda h: intake.intake_turn(llm, profile, ss.colony, h), disabled=ss.intake_complete)
         if out:
-            ss.colony = ss.colony.merge(out["colony_patch"])
+            ss.colony = ss.colony.merge(out.get("colony_patch") or {})
             reset_derived()
-            ss.chat.append({"role": "assistant", "content": out["reply"]})
-            if out["complete"]:
+            ss.chat.append({"role": "assistant", "content": out.get("reply") or ""})
+            if out.get("complete"):
                 ss.intake_complete = True
             st.rerun()
         if ss.intake_complete:
@@ -443,7 +443,7 @@ elif step == 7:
                 st.rerun()
     out = chat_turn("report_chat", lambda h: report.report_turn(llm, profile, rec, h), disabled=ss.report_draft is not None)
     if out:
-        ss.report_chat.append({"role": "assistant", "content": out["reply"]})
-        if out["complete"] and out["report"]:
+        ss.report_chat.append({"role": "assistant", "content": out.get("reply") or ""})
+        if out.get("complete") and out.get("report"):
             ss.report_draft = out["report"]
         st.rerun()
