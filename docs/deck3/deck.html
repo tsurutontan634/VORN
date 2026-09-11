@@ -131,13 +131,13 @@ table.cmp td.now { background: #F1F9F3; }
 </section>
 <section class="slide">
   <h1>非営利かつ自治体ごとに仕様が異なるため、システム化が進まず人手作業に依存</h1>
-  <p style="font-size:19px">1自治体あたりの担い手は数十〜数百人規模にとどまる一方、協働自治体は298にのぼり、要綱はすべて異なる。汎用ツールが存在しないため、現場では電話、LINE、Excel、紙によるアナログな手作業が続いている。</p>
+  <p style="font-size:19px">1自治体あたりの担い手は数十〜数百人規模（推定）にとどまる一方、協働自治体は298にのぼり、要綱は自治体ごとに異なる。私たちが調べた範囲では汎用ツールが存在しないため、現場では電話、LINE、Excel、紙によるアナログな手作業が続いている。</p>
   <p class="small muted" style="margin:14px 0 8px">それぞれの悩み</p>
   <div class="grid4" style="margin-top:8px">
     <div class="card"><h3>ボランティア</h3><p>要綱が読めない。期限を忘れる。電話が平日しか通じない。</p></div>
     <div class="card"><h3>市の職員</h3><p>不備で往復。電話の一次対応。登録地域の現況が報告頼み。</p></div>
     <div class="card"><h3>近隣住民</h3><p>苦情を出しても行政は収容しない。活動が始まるまで解決手段がない。</p></div>
-    <div class="card"><h3>病院・センター</h3><p>持込頭数と時期が読めない。</p></div>
+    <div class="card"><h3>病院・センター</h3><p>持込頭数と時期が読めない（推定）。</p></div>
   </div>
   <div class="foot"><span>出典：どうぶつ基金 2022年度実績（298行政）／堺市 猫の困りごとページ</span><span>6</span></div>
 </section>
@@ -161,7 +161,7 @@ table.cmp td.now { background: #F1F9F3; }
   <div class="step3">
     <div class="f"><div class="n"><b>①</b>対話による自然な情報入力</div><img class="shot" src="chat_s.jpg" style="width:100%;height:440px;object-fit:cover;object-position:top"></div>
     <div class="f"><div class="n"><b>②</b>次のタスク案内と指定様式の自動出力</div><img class="shot" src="next.jpg" style="width:100%"><img class="shot" src="form1.jpg" style="width:100%;height:270px;object-fit:cover;object-position:top;margin-top:10px"></div>
-    <div class="f"><div class="n"><b>③</b>自治体管理台帳への自動連携</div><img class="shot" src="city_list.jpg" style="width:100%"><img class="shot" src="city_pending.jpg" style="width:100%;margin-top:10px"><p class="cap">K-2026-010 が「申請中」で載り、報告後に「報告済」になる</p></div>
+    <div class="f"><div class="n"><b>③</b>台帳への自動反映</div><img class="shot" src="city_list.jpg" style="width:100%"><img class="shot" src="city_pending.jpg" style="width:100%;margin-top:10px"><p class="cap">K-2026-010 が「申請中」で載り、報告後に「報告済」になる</p></div>
   </div>
   <div class="foot"><span>プロトタイプ（Streamlit／Anthropic API）。京都市・高島市で動作。画面はプロトタイプの実画面、会話と判定の応答はモック（実APIは未検証）。</span><span>9</span></div>
 </section>
@@ -170,7 +170,7 @@ table.cmp td.now { background: #F1F9F3; }
   <div class="cols" style="gap:36px">
     <div class="col" style="flex:0.95"><img class="shot" src="chat.jpg" style="width:100%;height:205px;object-fit:cover;object-position:top"><img class="shot" src="chat2.jpg" style="width:100%;margin-top:12px"></div>
     <div class="col" style="flex:1.05">
-      <div class="callout noarrow" style="max-width:100%;margin-top:40px">町内会の同意を伝えると記録し、続けて「頭数が11頭（10頭以上）なので、同一世帯でない地域住民2名を含む京都市民3名以上が必要」と要綱第2条⑵の条件を返してから、活動者の入力へ進む。</div>
+      <div class="callout noarrow" style="max-width:100%;margin-top:40px">この後、町内会の同意を伝えると記録し、続けて「頭数が11頭（10頭以上）なので、同一世帯でない地域住民2名を含む京都市民3名以上が必要」と要綱第2条⑵の条件を返してから、活動者の入力へ進む。</div>
       <p class="cap" style="margin-top:28px;font-size:15px">入力は自然文。要綱の条件はAI側が持つ。集めるのは第1号様式・第6号様式に必要な項目だけ。</p>
       <p class="cap" style="font-size:15px">捕獲手順や自治会折衝、里親探しなどの相談には踏み込まず、事務手続きの支援に特化する安全設計。</p>
     </div>
@@ -195,7 +195,7 @@ table.cmp td.now { background: #F1F9F3; }
       <img class="shot" src="docs.jpg" style="width:100%;margin-top:14px;height:210px;object-fit:cover;object-position:top"><p class="cap">画面上の項目一覧。「要確認」は記載例と照らして確認が要る欄。</p>
     </div>
   </div>
-  <div class="foot"><span>左：第1号様式 まちねこ活動登録申請書（配布 touroku.docx）に転記した結果</span><span>12</span></div>
+  <div class="foot"><span>左：第1号様式 まちねこ活動登録申請書（配布 touroku.docx）に転記した結果。掲載画面の転記（セル判定）の応答はモック。本番経路ではAIが行う設計だが実APIは未検証。</span><span>12</span></div>
 </section>
 <section class="slide">
   <h1>更新期限が迫る活動地域を失効前に把握、未届による脱落を防止</h1>
@@ -227,7 +227,7 @@ table.cmp td.now { background: #F1F9F3; }
     <div class="col" style="flex:1.1"><img class="shot" src="tk_rules.jpg" style="width:100%;height:170px;object-fit:cover;object-position:top"><p class="cap">高島市の資料から抽出した規則に照らした判定。受付の値は市HP本文から抽出。交付要綱PDFは未取得。</p></div>
     <div class="col" style="flex:0.9"><p style="font-size:17px">京都市（登録型）と高島市（基金チケット型）は仕組みが違うが、同じ画面・同じコード。</p><p style="font-size:17px;margin:0">「住民申請・厳密な期限管理・定期報告と更新・ボランティアへの依存」という構造を持つ行政手続きは、地域猫活動以外にも幅広く存在する。</p></div>
   </div>
-  <div class="foot"><span>画面はプロトタイプ（高島市プロファイル）。出典：高島市 環境政策課ページ／どうぶつ基金 チケットFAQ・登録規約</span><span>15</span></div>
+  <div class="foot"><span>画面はプロトタイプ（高島市プロファイル）。掲載画面の規則・受付期間の抽出の応答はモック。本番経路ではAIが行う設計だが実APIは未検証。出典：高島市 環境政策課ページ／どうぶつ基金 チケットFAQ・登録規約</span><span>15</span></div>
 </section>
 <section class="slide">
   <h1>自治体ごとに異なる自然言語のルールを、AIが利用者に代わって読解・追跡</h1>
@@ -253,7 +253,7 @@ table.cmp td.now { background: #F1F9F3; }
     <div class="card col" style="min-height:250px;padding:22px"><h3 style="font-size:20px;margin:0 0 10px">指標</h3><p style="font-size:17px">申請から手術までの日数／登録継続率（職権抹消の減少）／引継ぎ後に継続した地域数／センター収容の子猫数</p></div>
     <div class="card col" style="min-height:250px;padding:22px"><h3 style="font-size:20px;margin:0 0 10px">今後の検証課題と開発状況</h3><p style="font-size:17px">審査通過後にセンター・基金への当事者ヒアリングを実施予定／高島市要綱PDFの取得と検証／API応答精度の検証を継続中（掲載画面はモック応答による検証環境で撮影）</p></div>
   </div>
-  <div class="card" style="margin-top:22px;padding:22px"><h3 style="font-size:20px;margin:0 0 10px">チーム シーサーズ</h3><p style="font-size:17px;margin:0">技術構成：Python／Streamlit／Anthropic API（Claude）／python-docx。京都市・高島市の2プロファイルで動作。要綱の規則はコードに書かず、資料フォルダから毎回抽出。日付の計算だけコード側。</p></div>
+  <div class="card" style="margin-top:22px;padding:22px"><h3 style="font-size:20px;margin:0 0 10px">技術構成</h3><p style="font-size:17px;margin:0">技術構成：Python／Streamlit／Anthropic API（Claude）／python-docx。京都市・高島市の2プロファイルで動作。要綱の規則はコードに書かず、資料フォルダから毎回抽出。日付の計算だけコード側。</p></div>
   <div class="foot"><span>出典：京都市獣医師会 まちねこページ／京都市10年評価／どうぶつ基金 2022年度実績</span><span>17</span></div>
 </section>
 <!-- 付録 A 出典 -->
