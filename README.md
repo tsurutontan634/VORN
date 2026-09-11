@@ -46,6 +46,7 @@ streamlit run app.py
 
 - APIキーが無いときは **モック応答** に自動で切り替わる（サイドバーに表示）。モックは UI を最後まで通すための固定台本で、`machineko/mock.py` にある。本番経路では使わない。
 - モデルは環境変数 `MACHINEKO_MODEL` で変更可（既定 `claude-sonnet-5`）。
+- **DeepSeek / OpenAI で動かす**：`ANTHROPIC_API_KEY` の代わりに `DEEPSEEK_API_KEY=sk-...` を設定すると DeepSeek（既定モデル `deepseek-chat`）、`OPENAI_API_KEY` なら OpenAI（既定 `gpt-4.1`）を OpenAI 互換経路で呼ぶ。Ollama などローカルは `OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 MACHINEKO_MODEL=<モデル名>`。両方のキーがあるときは `MACHINEKO_PROVIDER=anthropic|openai` で明示。OpenAI 互換経路は JSON モード＋スキーマをプロンプトに書く方式で、Anthropic の JSON Schema 強制よりゆるい。
 - `MACHINEKO_MOCK=1` でキーがあってもモックを強制。
 - 「すべてリセット」で台帳もデモ初期状態（ダミー4件）に戻る。
 - テスト：`python -m pytest -q`
