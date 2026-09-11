@@ -41,6 +41,18 @@ def _default_model(provider: str | None) -> str:
 DEFAULT_MODEL = _default_model(_provider())
 
 
+def _log(task: str, model: str, text: str) -> None:
+    """MACHINEKO_LOG=1 のとき、各呼び出しの生応答を data/llm_log.jsonl に追記する（検証用）。"""
+    if os.environ.get("MACHINEKO_LOG") != "1":
+        return
+    import datetime as _dt
+
+    path = Path(__file__).resolve().parent.parent / "data" / "llm_log.jsonl"
+    path.parent.mkdir(exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"ts": _dt.datetime.now().isoformat(timespec="seconds"), "task": task, "model": model, "response": text}, ensure_ascii=False) + "\n")
+
+
 def _has_credentials() -> bool:
     return _provider() is not None
 
@@ -122,7 +134,9 @@ class LLM:
 
             return mock.dispatch(task, ctx or {})
         if self.provider == "openai":
-            return self._parse_json(self._oa_call(self._oa_system(system, corpus, schema), [{"role": "user", "content": user}], schema))
+            raw = self._oa_call(self._oa_system(system, corpus, schema), [{"role": "user", "content": user}], schema)
+            _log(task, self.model, raw)
+            return self._parse_json(raw)
         resp = self._client.messages.create(
             model=self.model,
             max_tokens=16000,
@@ -133,6 +147,7 @@ class LLM:
         if resp.stop_reason == "refusal":
             raise RuntimeError("モデルが応答を拒否しました")
         text = next(b.text for b in resp.content if b.type == "text")
+        _log(task, self.model, text)
         return json.loads(text)
 
     def text(self, task: str, system: str, user: str, corpus: str | None = None, ctx: dict | None = None) -> str:
@@ -141,7 +156,9 @@ class LLM:
 
             return mock.dispatch(task, ctx or {})
         if self.provider == "openai":
-            return self._oa_call(self._oa_system(system, corpus, None), [{"role": "user", "content": user}], None)
+            raw = self._oa_call(self._oa_system(system, corpus, None), [{"role": "user", "content": user}], None)
+            _log(task, self.model, raw)
+            return raw
         resp = self._client.messages.create(
             model=self.model,
             max_tokens=16000,
@@ -150,7 +167,9 @@ class LLM:
         )
         if resp.stop_reason == "refusal":
             raise RuntimeError("モデルが応答を拒否しました")
-        return "".join(b.text for b in resp.content if b.type == "text")
+        out = "".join(b.text for b in resp.content if b.type == "text")
+        _log(task, self.model, out)
+        return out
 
     def chat_json(self, task: str, system: str, messages: list[dict], schema: dict, corpus: str | None = None, ctx: dict | None = None) -> dict:
         """会話履歴を渡して、構造化された1ターン分の応答を受ける（聞き取り用）。"""
@@ -159,7 +178,9 @@ class LLM:
 
             return mock.dispatch(task, ctx or {})
         if self.provider == "openai":
-            return self._parse_json(self._oa_call(self._oa_system(system, corpus, schema), messages, schema))
+            raw = self._oa_call(self._oa_system(system, corpus, schema), messages, schema)
+            _log(task, self.model, raw)
+            return self._parse_json(raw)
         resp = self._client.messages.create(
             model=self.model,
             max_tokens=16000,
@@ -170,4 +191,5 @@ class LLM:
         if resp.stop_reason == "refusal":
             raise RuntimeError("モデルが応答を拒否しました")
         text = next(b.text for b in resp.content if b.type == "text")
+        _log(task, self.model, text)
         return json.loads(text)
