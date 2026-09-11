@@ -97,7 +97,8 @@ class LLM:
             parts.append("出力は次の JSON Schema に厳密に従う JSON オブジェクトのみを返してください。前置き・説明・コードフェンスは不要です。\n\n" + json.dumps(schema, ensure_ascii=False))
         return "\n\n".join(parts)
 
-    def _oa_call(self, system: str, messages: list[dict], schema: dict | None) -> str:
+    def _oa_call(self, system: str, messages: list[dict], schema: dict | None, attempts: int = 3) -> str:
+        """OpenAI 互換の chat.completions。DeepSeek の JSON モードは稀に空文字を返すので再試行する。"""
         kwargs: dict[str, Any] = dict(
             model=self.model,
             max_tokens=8000,
@@ -105,20 +106,32 @@ class LLM:
         )
         if schema is not None:
             kwargs["response_format"] = {"type": "json_object"}
-        resp = self._client.chat.completions.create(**kwargs)
-        choice = resp.choices[0]
-        if choice.finish_reason == "content_filter":
-            raise RuntimeError("モデルが応答を拒否しました")
-        return choice.message.content or ""
+        last = ""
+        for i in range(attempts):
+            resp = self._client.chat.completions.create(**kwargs)
+            choice = resp.choices[0]
+            if choice.finish_reason == "content_filter":
+                raise RuntimeError("モデルが応答を拒否しました")
+            last = (choice.message.content or "").strip()
+            if not last:
+                _log("(empty)", self.model, f"attempt {i + 1}: finish_reason={choice.finish_reason}")
+                continue
+            if schema is not None:
+                try:
+                    self._parse_json(last)
+                except ValueError:
+                    _log("(bad-json)", self.model, f"attempt {i + 1}: {last[:500]}")
+                    continue
+            return last
+        raise RuntimeError(f"モデルから有効な応答が得られませんでした（{attempts}回試行）: {last[:200]!r}")
 
     @staticmethod
     def _parse_json(text: str) -> dict:
         s = text.strip()
-        if s.startswith("```"):
-            s = s.strip("`")
-            s = s[s.find("{"):]
         start, end = s.find("{"), s.rfind("}")
-        return json.loads(s[start:end + 1] if start >= 0 else s)
+        if start < 0 or end < start:
+            raise ValueError("JSON オブジェクトが含まれていません")
+        return json.loads(s[start:end + 1])
 
     # ---- 低レベル ----
     def _system_blocks(self, system: str, corpus: str | None) -> list[dict[str, Any]]:

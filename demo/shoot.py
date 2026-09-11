@@ -45,14 +45,22 @@ async def run():
         pg = await b.new_page(viewport={"width": 1440, "height": 1700}, device_scale_factor=1.5)
         SB = "[data-testid='stSidebar']"
 
+        BUSY = "[data-testid='stStatusWidget'], [data-testid='stSpinner'], .stSpinner"
+
         async def idle(min_ms=600, timeout=240_000):
-            """Streamlit の実行中インジケータが消えるまで待つ（実APIは1回10〜60秒かかる）。"""
+            """Streamlit の実行中表示（右上のステータス・spinner）が消えるまで待つ。実APIは1回数秒〜1分。"""
             await pg.wait_for_timeout(min_ms)
-            try:
-                await pg.wait_for_selector("[data-testid='stStatusWidget']", state="hidden", timeout=timeout)
-            except Exception:
-                pass
-            await pg.wait_for_timeout(700)
+            t0 = time.time()
+            while time.time() - t0 < timeout / 1000:
+                n = await pg.evaluate(f"document.querySelectorAll(\"{BUSY}\").length")
+                if n == 0:
+                    # 消えた直後に次の rerun が始まることがあるので、少し置いて再確認
+                    await pg.wait_for_timeout(500)
+                    n = await pg.evaluate(f"document.querySelectorAll(\"{BUSY}\").length")
+                    if n == 0:
+                        break
+                await pg.wait_for_timeout(400)
+            await pg.wait_for_timeout(500)
 
         async def step(label):
             await pg.locator(SB + " label", has_text=label).click(); await idle()

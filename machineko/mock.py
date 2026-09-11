@@ -312,6 +312,10 @@ def _report(ctx) -> dict:
 
 
 def dispatch(task: str, ctx: dict):
+    import os, time
+
+    if os.environ.get("MACHINEKO_MOCK_DELAY"):  # 実APIの待ち時間を模擬（demo/shoot.py の検証用）
+        time.sleep(float(os.environ["MACHINEKO_MOCK_DELAY"]))
     prof = ctx.get("profile")
     if prof is not None and getattr(prof, "id", "kyoto") == "takashima":
         from . import mock_takashima
