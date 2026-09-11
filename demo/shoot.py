@@ -47,7 +47,7 @@ async def run():
 
         BUSY = "[data-testid='stStatusWidget'], [data-testid='stSpinner'], .stSpinner"
 
-        async def idle(min_ms=600, timeout=240_000):
+        async def idle(min_ms=600, timeout=120_000):
             """Streamlit の実行中表示（右上のステータス・spinner）が消えるまで待つ。実APIは1回数秒〜1分。"""
             await pg.wait_for_timeout(min_ms)
             t0 = time.time()

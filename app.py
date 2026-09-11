@@ -143,11 +143,13 @@ def chat_turn(history_key: str, fn, *, disabled: bool):
     ss[history_key].append({"role": "user", "content": user_text})
     hist = [m for m in ss[history_key] if m["role"] in ("user", "assistant")]
     first_user = next(i for i, m in enumerate(hist) if m["role"] == "user")
+    err = None
     with st.spinner("整理しています…"):
         try:
             return fn(hist[first_user:])
         except Exception as e:  # noqa: BLE001
-            st.error(f"LLM 呼び出しに失敗しました: {e}")
+            err = e
+    st.error(f"LLM 呼び出しに失敗しました: {err}")
             st.stop()
 
 

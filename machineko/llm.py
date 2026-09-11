@@ -99,15 +99,27 @@ class LLM:
 
     def _oa_call(self, system: str, messages: list[dict], schema: dict | None, attempts: int = 3) -> str:
         """OpenAI 互換の chat.completions。DeepSeek の JSON モードは稀に空文字を返すので再試行する。"""
+        msgs = list(messages)
+        if schema is not None:
+            # JSON モードでは過去の assistant 発話も JSON にしておく（平文が混ざると DeepSeek が空応答を返すことがある）
+            msgs = [
+                {**m, "content": json.dumps({"reply": m["content"]}, ensure_ascii=False)}
+                if m.get("role") == "assistant" and isinstance(m.get("content"), str) and not m["content"].lstrip().startswith("{")
+                else m
+                for m in msgs
+            ]
         kwargs: dict[str, Any] = dict(
             model=self.model,
             max_tokens=8000,
-            messages=[{"role": "system", "content": system}, *messages],
+            messages=[{"role": "system", "content": system}, *msgs],
         )
-        if schema is not None:
-            kwargs["response_format"] = {"type": "json_object"}
         last = ""
         for i in range(attempts):
+            # 1回目は JSON モード、空応答なら 2回目以降は JSON モード無しで（スキーマ指示は system にある）
+            if schema is not None and i == 0:
+                kwargs["response_format"] = {"type": "json_object"}
+            else:
+                kwargs.pop("response_format", None)
             resp = self._client.chat.completions.create(**kwargs)
             choice = resp.choices[0]
             if choice.finish_reason == "content_filter":
