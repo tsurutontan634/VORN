@@ -1,4 +1,4 @@
-"""まちねこ事務局AI — Streamlit UI。
+"""ネコノテ — Streamlit UI。
 
 サイドバーで「市民面」と「自治体面」を切り替える。市民面は 1→5→7 の工程、自治体面は台帳。
 永続化は台帳（JSON）のみ。ほかは st.session_state。
@@ -17,7 +17,7 @@ from machineko.llm import LLM
 from machineko.profile import list_municipalities, load_profile
 from machineko.registry import Registry
 
-st.set_page_config(page_title="まちねこ事務局AI", page_icon="📋", layout="wide")
+st.set_page_config(page_title="ネコノテ", page_icon="📋", layout="wide")
 ui.inject()
 
 # ---------- state ----------
@@ -83,7 +83,7 @@ def step_done(n: int) -> bool:
 
 # ---------- sidebar ----------
 with st.sidebar:
-    st.markdown('<div style="font-size:20px;font-weight:700;margin-bottom:2px">まちねこ事務局AI</div><div style="font-size:12px;color:#AAB4BE;margin-bottom:14px">受付も報告も更新も落とさず回せて、担い手が代わっても市に情報が残る</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:20px;font-weight:700;margin-bottom:2px">ネコノテ</div><div style="font-size:12px;color:#AAB4BE;margin-bottom:14px">受付も報告も更新も落とさず回せて、担い手が代わっても市に情報が残る</div>', unsafe_allow_html=True)
     mids = list_municipalities()
     mid = st.selectbox("自治体プロファイル", mids, index=mids.index(ss.municipality), format_func=lambda m: get_profile(m).name)
     if mid != ss.municipality:
