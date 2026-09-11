@@ -150,7 +150,7 @@ def chat_turn(history_key: str, fn, *, disabled: bool):
         except Exception as e:  # noqa: BLE001
             err = e
     st.error(f"LLM 呼び出しに失敗しました: {err}")
-            st.stop()
+    st.stop()
 
 
 # ======================================================================
